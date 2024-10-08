@@ -1,5 +1,7 @@
 PySpark DataFrame Case Study: Movie Ratings Analysis
-Scenario: You have a dataset of movie ratings submitted by users. The goal is to analyze user preferences, average ratings, and identify popular movies. The dataset contains the following columns:
+Scenario: You have a dataset of movie ratings submitted by users. 
+The goal is to analyze user preferences, average ratings, and identify popular movies. 
+The dataset contains the following columns:
 • user_id: ID of the user
 • movie_id: ID of the movie
 • rating: Rating given by the user (1-5 scale)
@@ -42,44 +44,52 @@ data = [
 columns = ["user_id", "movie_id", "rating", "timestamp"]
 df = spark.createDataFrame(data, schema=columns)
 df.show()
+
 1. Filter
 Find all ratings that are greater than or equal to 4.
 
 df_filtered = df.filter(df.rating >= 4)
 df_filtered.show()
+
 2. Handle Null Values
 Replace null values in the 'rating' column with the average rating.
 
 average_rating = df.selectExpr('avg(rating)').collect()[0][0]
 df_filled = df.na.fill({'rating': average_rating})
 df_filled.show()
+
 3. Drop Duplicates
 Remove duplicate ratings by 'user_id' and 'movie_id'.
 
 df_no_duplicates = df.dropDuplicates(['user_id', 'movie_id'])
 df_no_duplicates.show()
+
 4. Select Specific Columns
 Select 'user_id' and 'rating' columns.
 
 df_selected = df.select('user_id', 'rating')
 df_selected.show()
+
 5. Grouping and Aggregating
 Calculate the average rating per movie.
 
 df_grouped = df.groupBy('movie_id').agg({'rating': 'avg'})
 df_grouped.show()
+
 6. Joining DataFrames
 Join the 'movie_ratings' DataFrame with a 'movie_details' DataFrame that contains 'movie_id' and 'movie_name'.
 
 # Assuming df_movies is another DataFrame that contains movie details
 df_joined = df.join(df_movies, on='movie_id', how='inner')
 df_joined.show()
+
 7. Union of DataFrames
 Union this DataFrame with another 'df_new_ratings' containing additional ratings data.
 Assuming we already had this df_new_ratings dataframe then the following code can be used.
 
 df_union = df.union(df_new_ratings)
 df_union.show()
+
 8. Temporary View and SQL
 Create a temp view and find the top-rated movies.
 
