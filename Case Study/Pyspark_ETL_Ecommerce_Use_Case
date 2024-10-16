@@ -1,0 +1,128 @@
+PySpark Business Use Cases in the E-commerce Sector
+
+This document presents business use cases for PySpark in the e-commerce sector using HDFS as the source and Hive as the target. 
+We will explore data cleaning techniques such as removing duplicates, handling null values, 
+and applying other popular data cleansing methods. The sample data involves multiple entities, 
+and we will transform this data into multiple tables in Hive using PySpark code.
+
+1. Business Use Cases
+
+1.1 Customer Data Integration
+
+**Description**: Integrating customer data from various sources to create a unified and consistent dataset. 
+This involves handling missing values, removing duplicates, standardizing data formats, and ensuring data completeness.
+
+1.2 Sales Transactions Analysis
+
+**Description**: Processing sales transaction data to identify purchase patterns, trends, and customer behaviors. 
+This requires transforming raw sales data, handling inconsistencies, 
+and merging it with other e-commerce data to create an analytical dataset.
+
+2. Sample Data
+
+2.1 Customer Data (HDFS Source)
+
+**Columns**: customer_id, first_name, last_name, email, phone, address, registration_date, last_purchase_date, total_spent
+
+**Sample Records**:
+1, John, Doe, john.doe@example.com, 123-456-7890, 123 Elm St, 2023-01-10, 2023-06-15, 500.00
+2, Jane, Smith, jane.smith@example.com, NULL, 456 Pine St, 2023-02-05, NULL, 0.00
+2, Jane, Smith, jane.smith@example.com, NULL, 456 Pine St, 2023-02-05, NULL, 0.00
+3, NULL, Brown, mary.brown@example.com, 789-123-4560, NULL, 2023-03-20, 2023-04-25, 200.00
+
+2.2 Sales Transactions Data (HDFS Source)
+
+**Columns**: transaction_id, customer_id, product_id, quantity, price, transaction_date, payment_method
+
+**Sample Records**:
+101, 1, P001, 2, 50.00, 2023-06-10, Credit Card
+102, 2, P002, 1, 100.00, 2023-06-11, PayPal
+103, 2, P002, 1, 100.00, 2023-06-11, PayPal
+104, 3, P003, 3, NULL, 2023-06-12, Credit Card
+
+2.3 Sample data had spaces between two records and also 'NULL' as records for some columns.
+These were removed and data was saved in local machine with nano command which was then uploaded to HDFS.
+The modified data that was inside the csv files in local machine is as follows:
+
+For customer data:
+
+customer_id,first_name,last_name,email,phone,address,registration_date,last_purchase_date,total_spent
+1,John,Doe,john.doe@example.com,123-456-7890,123 Elm St,2023-01-10,2023-06-15,500.00
+2,Jane,Smith,jane.smith@example.com,,456 Pine St,2023-02-05,,0.00
+2,Jane,Smith,jane.smith@example.com,,456 Pine St,2023-02-05,,0.00
+3,,Brown,mary.brown@example.com,789-123-4560,,2023-03-20,2023-04-25,200.00
+
+For Sales Transactions Data:
+
+transaction_id,customer_id,product_id,quantity,price,transaction_date,payment_method
+101,1,P001,2,50.00,2023-06-10,Credit Card
+102,2,P002,1,100.00,2023-06-11,PayPal
+103,2,P002,1,100.00,2023-06-11,PayPal
+104,3,P003,3,,2023-06-12,Credit Card
+
+3. Data Cleaning and Transformation
+
+3.1 PySpark Code for Data Cleaning
+The following PySpark code demonstrates how to read data from HDFS, remove duplicates, handle null values, 
+standardize data formats, and write the cleaned data to Hive tables.
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, lit, when, trim, lower
+
+# Initialize Spark Session
+spark = SparkSession.builder.appName("EcommerceDataProcessing").enableHiveSupport().getOrCreate()
+
+# Read Customer Data from HDFS
+customer_df = spark.read.csv("hdfs:///data/spark_etl/case_study/ecommerce/customer_data", header=True, inferSchema=True)
+
+# Read Sales Transactions Data from HDFS
+sales_df = spark.read.csv("hdfs:///data/spark_etl/case_study/ecommerce/sales_transactions_data", header=True, inferSchema=True)
+
+# Data Cleaning: Remove Duplicates
+customer_df = customer_df.dropDuplicates()
+sales_df = sales_df.dropDuplicates()
+
+#Convert  last_purchase_date column data type from timestamp to StringType to be able to handle fill null command
+customer_df = customer_df.withColumn("last_purchase_date",col("last_purchase_date").cast("string"))
+
+# Handle Null Values: Replace NULLs with Default Values
+customer_df = customer_df.fillna({"first_name": "Unknown", "phone": "Unknown", "address": "Unknown", "last_purchase_date": "Unknown","total_spent": 0.0})
+sales_df = sales_df.fillna({"quantity": 0, "price": 0.0})
+
+# Standardize Data Formats: Trim Whitespaces and Convert to Lowercase
+customer_df = customer_df.withColumn("email", trim(lower(col("email"))))
+sales_df = sales_df.withColumn("payment_method", trim(lower(col("payment_method"))))
+
+# Write Cleaned Data to Hive Tables
+customer_df.write.mode("overwrite").saveAsTable("ecommerce_db.cleaned_customer_data")
+sales_df.write.mode("overwrite").saveAsTable("ecommerce_db.cleaned_sales_data")
+
+
+4. Data Completeness and Consistency Checks
+
+After writing the cleaned data to Hive, it's essential to verify data completeness and consistency. 
+This involves checking that all records from the source were correctly ingested into the target tables and 
+that there are no discrepancies. The following PySpark code demonstrates how to perform these checks.
+
+# Check Record Counts Between Source and Target
+source_customer_count = customer_df.count()
+target_customer_count = spark.sql("SELECT COUNT(*) FROM ecommerce_db.cleaned_customer_data").collect()[0][0]
+
+if source_customer_count == target_customer_count:
+    print("Customer data is complete and consistent.")
+else:
+    print("Data inconsistency detected in customer records.")
+
+source_sales_count = sales_df.count()
+target_sales_count = spark.sql("SELECT COUNT(*) FROM ecommerce_db.cleaned_sales_data").collect()[0][0]
+
+if source_sales_count == target_sales_count:
+    print("Sales data is complete and consistent.")
+else:
+    print("Data inconsistency detected in sales records.")
+
+5. Conclusion
+The above PySpark code demonstrates how to clean e-commerce data, handle duplicates and null values, 
+standardize formats, and ensure data completeness and consistency when transforming data from HDFS to Hive. 
+These practices are essential for maintaining accurate and reliable data in the e-commerce sector, 
+where data quality is critical for decision-making and analysis.
