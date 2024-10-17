@@ -1,6 +1,7 @@
 PySpark Case Study: Analyzing E-Commerce Transactions
 Scenario:
-You have a dataset of e-commerce transactions, and you want to analyze customer purchase patterns, total spending, and the most frequently purchased products. The dataset contains the following columns:
+You have a dataset of e-commerce transactions, and you want to analyze customer purchase patterns, 
+total spending, and the most frequently purchased products. The dataset contains the following columns:
 - transaction_id: Unique ID for each transaction
 - customer_id: Unique ID for each customer
 - product_id: Unique ID for each product
