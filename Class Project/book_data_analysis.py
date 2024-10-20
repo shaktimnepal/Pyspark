@@ -41,4 +41,58 @@ Pyspark code
 
 Solution:
 
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, when, lit, broadcast
+
+def book_data_analyzer(spark, filepath):
+    df = spark.read.json(filepath)
+    # Step 2: Count rows and distinct rows
+    print("Total number of rows:", df.count())
+    print("Number of distinct rows:", df.distinct().count())
+
+    # Step 3: Remove duplicates
+    df_no_duplicates = df.dropDuplicates()
+
+    # Step 4 & 5: Add 'newHours' and 'universal' columns
+    df_with_hours = df_no_duplicates.withColumn(
+        "newHours", when(col("title") != 'ODD HOURS', 1).otherwise(0)
+    ).withColumn(
+        "universal", when(col("title").like('%THE%'), True).otherwise(False)
+    )
+
+    # Step 6: Substring of author
+    df_with_hours.select(
+        col("author").substr(1, 3).alias("newTitle1"),
+        col("author").substr(3, 4).alias("newTitle2")
+    ).show(5)
+
+    # Step 7: Show selected columns
+    df_with_hours.select("title", "author", "rank", "price").show()
+
+    # Step 8: Filter by specific authors
+    authors = spark.createDataFrame([("John Sandford",), ("Emily Giffin",)], ["author"])
+    df_with_hours.join(broadcast(authors), "author").show()
+
+    # Step 9: Filter titles starting with "THE" or ending with "IN"
+    df_with_hours.filter(col("title").rlike("^(THE|.*IN$)")).select("author", "title").show()
+
+    # Step 10: Rename column
+    df_renamed = df_with_hours.withColumnRenamed("amazon_product_url", "URL")
+
+    # Step 11: Drop columns
+    df_final = df_renamed.drop("publisher", "published_date")
+    df_final.show(5)
+
+    # Step 12: Group by author and count books
+    df_final.groupBy("author").count().show()
+
+    # Step 13: Filter by title
+    df_final.filter(col("title") == "THE HOST").show()
+
+if __name__ == '__main__':
+    spark = SparkSession.builder.appName("Books Data Analysis").getOrCreate()
+    filepath = 'file:///home/takeo/data/book_sales_analysis'
+    book_data_analyzer(spark, filepath)
+    spark.stop()
+
 
