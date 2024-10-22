@@ -1,0 +1,112 @@
+PySpark Business Use Cases in the Healthcare Sector
+
+This document presents business use cases for PySpark in the healthcare sector using HDFS as the source 
+and Hive as the target. We will explore data cleaning techniques such as removing duplicates, handling null values, 
+and ensuring data completeness and consistency. The sample data involves multiple entities, 
+and we will transform this data into multiple tables in Hive using PySpark code.
+  
+1. Business Use Cases
+
+1.1 Patient Data Integration
+  
+**Description**: Integrating patient data from various sources to create a unified and consistent dataset. 
+This involves handling missing values, removing duplicates, and ensuring data completeness.
+
+1.2 Claims Data Analysis
+  
+**Description**: Processing claims data to identify patterns, trends, and anomalies. This requires transforming raw claims data, 
+handling inconsistencies, and merging it with other healthcare data to create an analytical dataset.
+
+2. Sample Data
+
+2.1 Patient Data (HDFS Source)
+
+**Columns**: patient_id, first_name, last_name, dob, gender, address, contact_number, email, insurance_plan_id, last_visit_date
+**Sample Records**:
+1, John, Doe, 1985-05-10, Male, 123 Main St, 123-456-7890, john.doe@example.com, 101, 2024-01-10
+2, Jane, Smith, 1990-07-15, Female, 456 Oak St, 234-567-8901, jane.smith@example.com, 102, 2024-01-15
+2, Jane, Smith, 1990-07-15, Female, 456 Oak St, 234-567-8901, jane.smith@example.com, 102, 2024-01-15
+3, NULL, Williams, 1975-09-25, Female, NULL, 345-678-9012, alice.williams@example.com, NULL, 2024-01-20
+
+
+2.2 Claims Data (HDFS Source)
+**Columns**: claim_id, patient_id, claim_date, claim_amount, diagnosis_code, treatment_code, provider_id
+**Sample Records**:
+101, 1, 2024-01-05, 250.00, D123, T456, 501
+102, 2, 2024-01-08, 300.00, D124, T457, 502
+103, 2, 2024-01-08, 300.00, D124, T457, 502
+104, 3, 2024-01-12, NULL, D125, T458, 503
+
+2.3 Sample Patient Data after basic formatting in text editor:
+
+patient_id,first_name,last_name,dob,gender,address,contact_number,email,insurance_plan_id,last_visit_date
+1,John,Doe,1985-05-10,Male,123 Main St,123-456-7890,john.doe@example.com,101,2024-01-10
+2,Jane,Smith,1990-07-15,Female,456 Oak St,234-567-8901,jane.smith@example.com,102,2024-01-15
+2,Jane,Smith,1990-07-15,Female,456 Oak St,234-567-8901,jane.smith@example.com,102,2024-01-15
+3,,Williams,1975-09-25,Female,,345-678-9012,alice.williams@example.com,,2024-01-20
+
+2.4 Sample Claims Data after basic formatting in text editor:
+
+claim_id,patient_id,claim_date,claim_amount,diagnosis_code,treatment_code,provider_id
+101,1,2024-01-05,250.00,D123,T456,501
+102,2,2024-01-08,300.00,D124,T457,502
+103,2,2024-01-08,300.00,D124,T457,502
+104,3,2024-01-12,,D125,T458,503
+
+3. Data Cleaning and Transformation
+
+3.1 PySpark Code for Data Cleaning
+The following PySpark code demonstrates how to read data from HDFS, remove duplicates, handle null values, 
+and write the cleaned data to Hive tables.
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, lit, when
+
+# Initialize Spark Session
+spark = SparkSession.builder.appName("HealthcareDataProcessing").enableHiveSupport().getOrCreate()
+
+# Read Patient Data from HDFS
+patient_df = spark.read.csv("hdfs:///data/spark_etl/case_study/healthcare/patient_data", header=True, inferSchema=True)
+
+# Read Claims Data from HDFS
+claims_df = spark.read.csv("hdfs:///data/spark_etl/case_study/healthcare/claims_data", header=True, inferSchema=True)
+
+# Data Cleaning: Remove Duplicates
+patient_df = patient_df.dropDuplicates()
+claims_df = claims_df.dropDuplicates()
+
+# Handle Null Values: Replace NULLs with Default Values
+patient_df = patient_df.fillna({"first_name": "Unknown", "address": "Unknown", "insurance_plan_id": -1})
+claims_df = claims_df.fillna({"claim_amount": 0.0})
+
+# Write Cleaned Data to Hive Tables
+patient_df.write.mode("overwrite").saveAsTable("healthcare_db.cleaned_patient_data")
+claims_df.write.mode("overwrite").saveAsTable("healthcare_db.cleaned_claims_data")
+
+4. Data Completeness and Consistency Checks
+After writing the cleaned data to Hive, it's essential to verify data completeness and consistency. 
+This involves checking that all records from the source were correctly ingested into the target tables and 
+that there are no discrepancies. The following PySpark code demonstrates how to perform these checks.
+
+# Check Record Counts Between Source and Target
+source_patient_count = patient_df.count()
+target_patient_count = spark.sql("SELECT COUNT(*) FROM healthcare_db.cleaned_patient_data").collect()[0][0]
+
+if source_patient_count == target_patient_count:
+    print("Patient data is complete and consistent.")
+else:
+    print("Data inconsistency detected in patient records.")
+
+source_claims_count = claims_df.count()
+target_claims_count = spark.sql("SELECT COUNT(*) FROM healthcare_db.cleaned_claims_data").collect()[0][0]
+
+if source_claims_count == target_claims_count:
+    print("Claims data is complete and consistent.")
+else:
+    print("Data inconsistency detected in claims records.")
+
+5. Conclusion
+The above PySpark code demonstrates how to clean healthcare data, handle duplicates and null values, and 
+ensure data completeness and consistency when transforming data from HDFS to Hive. 
+These practices are essential for maintaining accurate and reliable data in the healthcare sector, 
+where data quality is critical for decision-making and analysis.
